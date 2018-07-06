@@ -3,7 +3,10 @@
 THREADS=64
 JAVA='~/jdk1.8.0_92/bin/java '
 CNVNATOR='bin/CNVnator-master/cnvnator '
-BIN_SIZE=150
+BWA='~/bin/bwa '
+SAMTOOLS='bin/CNVnator-master/samtools/samtools '
+
+BIN_SIZE=300
 rule all:
 	#input: 'cnvs/FTD_P1_E02-35794035/FTD-P1-E02_S15_L003_L004.cnv'
 	#input: 'cnvs/FTD_P1_F04-35810021/FTD-P1-F04_S16_L003_L004.cnv'	
@@ -55,7 +58,7 @@ rule convert_and_sort_sam_to_bam:
 	input: sam='sam/{sample}/{file}_L{laneA}_L{laneB}.sam'
 	output: bam='bam/{sample}/{file}_L{laneA}_L{laneB}.bam'#, bai='bam/{sample}/{file}_L{laneA}_L{laneB}.bai'
 	params: bam='bam/{sample}/{file}_L{laneA}_L{laneB}'
-	shell: 'samtools view -bS {input.sam} | samtools sort - {params.bam}'
+	shell: SAMTOOLS + 'view -bS {input.sam} | samtools sort - {params.bam}'
 
 ### Defect, doesnt work with the output created by bwa	
 #rule convert_sam_to_bam:
@@ -74,7 +77,7 @@ rule pairedEnd:
 	""" make a paired end sam file from forward and reverse strands"""
 	input: fwd_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R1.sai', rev_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R2.sai', fwd_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R1.fastq.gz', rev_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R2.fastq.gz'
 	output: sam=temp('sam/{sample}/{file}_L{laneA}_L{laneB}.sam')
-	shell: """bwa sampe -f {output.sam} -r '@RG\tID:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tLB:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tSM:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tPL:ILLUMINA' indexed/hg18 {input.fwd_sai} {input.rev_sai} {input.fwd_fastq} {input.rev_fastq}"""
+	shell: BWA + """sampe -f {output.sam} -r '@RG\\tID:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\\tLB:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\\tSM:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\\tPL:ILLUMINA' indexed/hg18 {input.fwd_sai} {input.rev_sai} {input.fwd_fastq} {input.rev_fastq}"""
 	
 rule alignSamples:
 	"""align fastq samples to indexed reference"""
@@ -82,7 +85,7 @@ rule alignSamples:
 	params: index='indexed/hg18'
 	output: sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R{R}.sai'
 	threads: THREADS
-	shell: 'bwa aln -t {threads} -f {output.sai} {params.index} {input.fastq}'
+	shell: BWA + 'aln -t {threads} -f {output.sai} {params.index} {input.fastq}'
 
 rule merge:
 	""" Merge the lanes into single fastq """
@@ -100,7 +103,7 @@ rule index:
 	"""index reference (takes a while) """
 	input: 'indexed/hg18.fa'
 	output: 'indexed/hg18.pac', 'indexed/hg18.amb', 'indexed/hg18.ann'
-	shell: 'bwa index -a bwtsw -p indexed/hg19 indexed/hg19.fa'
+	shell: BWA + ' index -a bwtsw -p indexed/hg18 indexed/hg18.fa'
 
 rule makeFa:
 	"""merge reference (http://hgdownload.cse.ucsc.edu/goldenPath/hg18/bigZips/chromFa.zip) to single fasta """
