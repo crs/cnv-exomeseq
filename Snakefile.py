@@ -3,37 +3,37 @@
 THREADS=64
 JAVA='~/jdk1.8.0_92/bin/java '
 CNVNATOR='bin/CNVnator-master/cnvnator '
-BIN_SIZE=100
+BIN_SIZE=150
 rule all:
 	#input: 'cnvs/FTD_P1_E02-35794035/FTD-P1-E02_S15_L003_L004.cnv'
 	#input: 'cnvs/FTD_P1_F04-35810021/FTD-P1-F04_S16_L003_L004.cnv'	
-	input: 'cnvs/FTD_P1_E09-35796034/FTD-P1-E09_S7_L001_L002.cnv'	
+	input: 'cnvs/FTD_P1_E09-35796034/FTD-P1-E09_S7_L001_L002_bin' + str(BIN_SIZE) + '.cnv'	
 
 rule cnv_calling:
 	""" call the cnvs with CNVnator """
-	input: log='logs/{sample}/partition.{file}_L{laneA}_L{laneB}.log', 		
-	output: 'cnvs/{sample}/{file}_L{laneA}_L{laneB}.cnv'
+	input: log='logs/{sample}/partition.{file}_L{laneA}_L{laneB}_bin{bin_size}.log', 		
+	output: 'cnvs/{sample}/{file}_L{laneA}_L{laneB}_bin{bin_size}.cnv'
 	params: bin_size=BIN_SIZE, root='root/{sample}/{file}_L{laneA}_L{laneB}.root'
 	shell: CNVNATOR + "-root {params.root} -call {params.bin_size} > {output}"
 	
 rule rd_signal_partitioning:
 	""" partitioning step, this takes a while """
-	input:  log='logs/{sample}/statistics.{file}_L{laneA}_L{laneB}.log'
-	output: log='logs/{sample}/partition.{file}_L{laneA}_L{laneB}.log'
+	input:  log='logs/{sample}/statistics.{file}_L{laneA}_L{laneB}_bin{bin_size}.log'
+	output: log='logs/{sample}/partition.{file}_L{laneA}_L{laneB}_bin{bin_size}.log'
 	params: bin_size=BIN_SIZE, root='root/{sample}/{file}_L{laneA}_L{laneB}.root',
 	shell: CNVNATOR + "-root {params.root} -partition {params.bin_size} > {output.log}"
 
 rule statistics:
 	""" create statistics on the root"""
-	input: log='logs/{sample}/histogram.{file}_L{laneA}_L{laneB}.log'	
-	output: log='logs/{sample}/statistics.{file}_L{laneA}_L{laneB}.log'
+	input: log='logs/{sample}/histogram.{file}_L{laneA}_L{laneB}_bin{bin_size}.log'	
+	output: log='logs/{sample}/statistics.{file}_L{laneA}_L{laneB}_bin{bin_size}.log'
 	params: bin_size=BIN_SIZE, root='root/{sample}/{file}_L{laneA}_L{laneB}.root'
 	shell: CNVNATOR + "-root {params.root} -genome hg18 -stat {params.bin_size} > {output.log}"
 
 rule generate_histogram:
 	""" create histogram, as the original files are modified, further requirements for snakemake are the logs from streaming std into files """
 	input: log='logs/{sample}/extraction.{file}_L{laneA}_L{laneB}.log', reference="indexed/chr"
-	output: log='logs/{sample}/histogram.{file}_L{laneA}_L{laneB}.log'
+	output: log='logs/{sample}/histogram.{file}_L{laneA}_L{laneB}_bin{bin_size}.log'
 	params: bin_size=BIN_SIZE, root='root/{sample}/{file}_L{laneA}_L{laneB}.root'
 	shell: CNVNATOR + "-root {params.root} -his {params.bin_size} -d {input.reference} > {output.log}"
 	
@@ -73,7 +73,7 @@ rule convert_and_sort_sam_to_bam:
 rule pairedEnd:
 	""" make a paired end sam file from forward and reverse strands"""
 	input: fwd_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R1.sai', rev_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R2.sai', fwd_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R1.fastq.gz', rev_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R2.fastq.gz'
-	output: sam=temp( 'sam/{sample}/{file}_L{laneA}_L{laneB}.sam')
+	output: sam=temp('sam/{sample}/{file}_L{laneA}_L{laneB}.sam')
 	shell: """bwa sampe -f {output.sam} -r '@RG\tID:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tLB:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tSM:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tPL:ILLUMINA' indexed/hg18 {input.fwd_sai} {input.rev_sai} {input.fwd_fastq} {input.rev_fastq}"""
 	
 rule alignSamples:
