@@ -6,7 +6,8 @@ CNVNATOR='bin/CNVnator-master/cnvnator '
 BIN_SIZE=100
 rule all:
 	#input: 'cnvs/FTD_P1_E02-35794035/FTD-P1-E02_S15_L003_L004.cnv'
-	input: 'cnvs/FTD_P1_F04-35810021/FTD-P1-F04_S16_L003_L004.cnv'	
+	#input: 'cnvs/FTD_P1_F04-35810021/FTD-P1-F04_S16_L003_L004.cnv'	
+	input: 'cnvs/FTD_P1_E09-35796034/FTD-P1-E09_S7_L001_L002.cnv'	
 
 rule cnv_calling:
 	""" call the cnvs with CNVnator """
@@ -52,7 +53,7 @@ rule runPennCNV:
 rule convert_and_sort_sam_to_bam:
 	""" samtools sam to bam conversion; piping into a sorted bam """
 	input: sam='sam/{sample}/{file}_L{laneA}_L{laneB}.sam'
-	output: bam='bam/{sample}/{file}_L{laneA}_L{laneB}.bam', bai='bam/{sample}/{file}_L{laneA}_L{laneB}.bai'
+	output: bam='bam/{sample}/{file}_L{laneA}_L{laneB}.bam'#, bai='bam/{sample}/{file}_L{laneA}_L{laneB}.bai'
 	params: bam='bam/{sample}/{file}_L{laneA}_L{laneB}'
 	shell: 'samtools view -bS {input.sam} | samtools sort - {params.bam}'
 
@@ -71,13 +72,13 @@ rule convert_and_sort_sam_to_bam:
 	
 rule pairedEnd:
 	""" make a paired end sam file from forward and reverse strands"""
-	input: fwd_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R1.sai', rev_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R2.sai', fwd_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R1.fastq', rev_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R2.fastq'
-	output: sam='sam/{sample}/{file}_L{laneA}_L{laneB}.sam'
+	input: fwd_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R1.sai', rev_sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R2.sai', fwd_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R1.fastq.gz', rev_fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R2.fastq.gz'
+	output: sam=temp( 'sam/{sample}/{file}_L{laneA}_L{laneB}.sam')
 	shell: """bwa sampe -f {output.sam} -r '@RG\tID:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tLB:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tSM:{wildcards.sample}_{wildcards.file}_L{wildcards.laneA}_L{wildcards.laneB}\tPL:ILLUMINA' indexed/hg18 {input.fwd_sai} {input.rev_sai} {input.fwd_fastq} {input.rev_fastq}"""
 	
 rule alignSamples:
 	"""align fastq samples to indexed reference"""
-	input: fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R{R}.fastq', index='indexed/hg18.ann'
+	input: fastq='merged/{sample}/{file}_L{laneA}_L{laneB}_R{R}.fastq.gz', index='indexed/hg18.ann'
 	params: index='indexed/hg18'
 	output: sai='aligned/{sample}/{file}_L{laneA}_L{laneB}_R{R}.sai'
 	threads: THREADS
@@ -85,9 +86,15 @@ rule alignSamples:
 
 rule merge:
 	""" Merge the lanes into single fastq """
-	input: laneA='fastq/{sample}/{file}_L{laneA}_R{R}_001.fastq', laneB='fastq/{sample}/{file}_L{laneB}_R{R}_001.fastq'
-	output: 'merged/{sample}/{file}_L{laneA}_L{laneB}_R{R}.fastq'
+	input: laneA='fastq/{sample}/{file}_L{laneA}_R{R}_001.fastq.gz', laneB='fastq/{sample}/{file}_L{laneB}_R{R}_001.fastq.gz'
+	output: temp('merged/{sample}/{file}_L{laneA}_L{laneB}_R{R}.fastq.gz')
 	shell: 'cat {input.laneA} {input.laneB} > {output}'
+
+### gzip doesnt need this, actually	
+#rule gunzip:
+#	input: gz='fastq/{sample}/{file}_L{lane}_R{R}_001.fastq.gz'
+#	output: temp(fastq='fastq/{sample}/{file}_L{laneA}_R{R}_001.fastq')
+#	shell: "gunzip -c {input.gz} > {output.fastq}
 	
 rule index:
 	"""index reference (takes a while) """
