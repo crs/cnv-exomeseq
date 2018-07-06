@@ -4,6 +4,9 @@
 usage:
 	snakemake --snakefile Snakefile.py
 
+workflow:
+	![alt workflow](https://raw.githubusercontent.com/crs/cnv-exomeseq/master/cnv-exomeseq.png)
+
 Req.:
 - samtools
 - CNVnator
