@@ -6,12 +6,23 @@ CNVNATOR='bin/CNVnator-master/cnvnator '
 BWA='~/bin/bwa '
 SAMTOOLS='bin/CNVnator-master/samtools/samtools '
 
-BIN_SIZE=300
+MIN_CNV_LENGTH=100000
+PVAL_THRESHOLD=0.05
+QVAL_THRESHOLD=0.5
+BIN_SIZE=1000
+
 rule all:
 	#input: 'cnvs/FTD_P1_E02-35794035/FTD-P1-E02_S15_L003_L004.cnv'
 	#input: 'cnvs/FTD_P1_F04-35810021/FTD-P1-F04_S16_L003_L004.cnv'	
-	input: 'cnvs/FTD_P1_E09-35796034/FTD-P1-E09_S7_L001_L002_bin' + str(BIN_SIZE) + '.cnv'	
+	input: 'filtered_cnvs/FTD_P1_E09-35796034/FTD-P1-E09_S7_L001_L002_bin' + str(BIN_SIZE) + '.cnv'	
 
+rule filter_CNVs:
+	input: 'cnvs/{sample}/{file}_L{laneA}_L{laneB}_bin{bin_size}.cnv'
+	output: 'filtered_cnvs/{sample}/{file}_L{laneA}_L{laneB}_bin{bin_size}.cnv'
+	params: length=MIN_CNV_LENGTH, pval=PVAL_THRESHOLD, qval=QVAL_THRESHOLD
+	shell: """
+		awk '{{ if (0 <= $9 && $9 < {params.qval} && $3 >= {params.length} && $5 <= {params.pval} && $6 <= {params.pval} && $7 < {params.pval} && $8 < {params.pval}) print; }}' {input} | sort -g -k5,6 > {output}"""
+	
 rule cnv_calling:
 	""" call the cnvs with CNVnator """
 	input: log='logs/{sample}/partition.{file}_L{laneA}_L{laneB}_bin{bin_size}.log', 		
